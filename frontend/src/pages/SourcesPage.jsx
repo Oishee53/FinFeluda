@@ -6,7 +6,7 @@ import { Badge } from "../components/ui/Badge";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { useInvestigation, useInvestigationSources } from "../hooks/useInvestigation";
-import { CONFIDENCE_TIER_META, formatSourceType } from "../lib/utils";
+import { CONFIDENCE_TIER_META, buildExploreLinks, formatSourceType } from "../lib/utils";
 
 const TIER_DESCRIPTIONS = {
   1: "The company's own uploaded documents and official filings (e.g. SEC 10-Ks). The AI treats hard financial figures from these as fact.",
@@ -111,6 +111,31 @@ export function SourcesPage() {
               </Card>
             );
           })}
+
+          {investigation?.company_name && (
+            <Card title="Explore more">
+              <p className="mb-4 text-sm text-ink-muted">
+                Places the AI didn't check itself — most social platforms block automated
+                scraping without a paid API. These are direct search links, not analyzed
+                content, in case they turn up something useful.
+              </p>
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {buildExploreLinks(investigation.company_name).map((link) => (
+                  <li key={link.label}>
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-lg border border-line px-3.5 py-2.5 transition-colors hover:border-brand hover:bg-brand-soft/40"
+                    >
+                      <p className="text-sm font-medium text-ink">{link.label}</p>
+                      <p className="mt-0.5 text-xs text-ink-faint">{link.hint}</p>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </div>
       </div>
     </PageWrapper>
