@@ -52,6 +52,63 @@ export const CONFIDENCE_TIER_META = {
   4: { label: "Unverified signal", color: "tier-4" },
 };
 
+export function formatSourceType(type) {
+  if (!type) return "Source";
+  return type
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * Direct search links for platforms the backend doesn't (and largely
+ * can't, without a paid API or app-review access) scrape automatically
+ * -- Facebook, X/Twitter, and LinkedIn all restrict unauthenticated
+ * search access. These are plain constructed search URLs, not analyzed
+ * content, so the Sources page must label them as such rather than
+ * imply the AI already looked at them.
+ */
+export function buildExploreLinks(companyName) {
+  const q = encodeURIComponent(companyName);
+  return [
+    {
+      label: "Facebook",
+      url: `https://www.facebook.com/search/top?q=${q}`,
+      hint: "Public posts, page updates, follower comments",
+    },
+    {
+      label: "X / Twitter",
+      url: `https://twitter.com/search?q=${q}`,
+      hint: "Real-time sentiment, announcements, complaints",
+    },
+    {
+      label: "LinkedIn",
+      url: `https://www.linkedin.com/search/results/companies/?keywords=${q}`,
+      hint: "Headcount, hiring activity, leadership profiles",
+    },
+    {
+      label: "Instagram",
+      url: `https://www.instagram.com/explore/search/keyword/?q=${q}`,
+      hint: "Brand presence, product/marketing signal",
+    },
+    {
+      label: "Crunchbase",
+      url: `https://www.crunchbase.com/textsearch?q=${q}`,
+      hint: "Funding history, investors, acquisitions",
+    },
+    {
+      label: "Glassdoor",
+      url: `https://www.glassdoor.com/Search/results.htm?keyword=${q}`,
+      hint: "Employee reviews, culture, attrition signal",
+    },
+    {
+      label: "Google",
+      url: `https://www.google.com/search?q=${q}`,
+      hint: "General web search for anything the above missed",
+    },
+  ];
+}
+
 export function scoreTone(score) {
   if (score === null || score === undefined) return "tier-4";
   if (score >= 75) return "tier-1";
