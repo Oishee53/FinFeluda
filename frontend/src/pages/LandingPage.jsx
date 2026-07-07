@@ -4,25 +4,6 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { cn, CONFIDENCE_TIER_META } from "../lib/utils";
 
-const PIPELINE = [
-  {
-    stage: "Gather",
-    copy: "Pulls from uploaded documents, the company site, SEC EDGAR, Wikipedia, GitHub, Reddit, news, and more.",
-  },
-  {
-    stage: "Normalize",
-    copy: "Boundary-aware chunking with dense + keyword embeddings, indexed with full source provenance.",
-  },
-  {
-    stage: "Reason",
-    copy: "Extracts the financials, scores the risk, and cross-checks claims against independent signal.",
-  },
-  {
-    stage: "Persist",
-    copy: "Writes a scored, sourced record you can reopen, compare, or export — nothing recomputed twice.",
-  },
-];
-
 const FEATURES = [
   {
     tag: "FH",
@@ -281,37 +262,6 @@ function EvidenceLedgerDemo() {
   );
 }
 
-function PipelineStrip() {
-  return (
-    <motion.div
-      variants={staggerGroup}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.4 }}
-      className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4"
-    >
-      {PIPELINE.map((step, i) => (
-        <motion.div key={step.stage} variants={revealUp} className="relative pl-5">
-          <span
-            aria-hidden="true"
-            className="absolute left-0 top-1.5 h-2 w-2 rounded-full bg-brand"
-          />
-          {i < PIPELINE.length - 1 && (
-            <span
-              aria-hidden="true"
-              className="absolute -left-4 top-2 hidden h-px w-4 bg-line-strong lg:block"
-            />
-          )}
-          <p className="font-mono text-xs font-semibold tracking-[0.14em] text-brand uppercase">
-            {step.stage}
-          </p>
-          <p className="mt-2 text-sm text-ink-muted">{step.copy}</p>
-        </motion.div>
-      ))}
-    </motion.div>
-  );
-}
-
 function FeatureGrid() {
   return (
     <motion.div
@@ -428,28 +378,24 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="border-t border-line bg-surface">
-          <div className="mx-auto w-full max-w-6xl px-6 py-16 md:px-8">
-            <PipelineStrip />
+        <section className="border-t border-line">
+          <div className="mx-auto w-full max-w-6xl px-6 py-20 md:px-8">
+            <motion.div
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.6 }}
+              variants={revealUp}
+              className="mb-10 max-w-xl"
+            >
+              <p className="font-mono text-xs font-semibold tracking-[0.14em] text-brand uppercase">
+                What it does
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+                One upload, a full investigation.
+              </h2>
+            </motion.div>
+            <FeatureGrid />
           </div>
-        </section>
-
-        <section className="mx-auto w-full max-w-6xl px-6 py-20 md:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.6 }}
-            variants={revealUp}
-            className="mb-10 max-w-xl"
-          >
-            <p className="font-mono text-xs font-semibold tracking-[0.14em] text-brand uppercase">
-              What it does
-            </p>
-            <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
-              One upload, a full investigation.
-            </h2>
-          </motion.div>
-          <FeatureGrid />
         </section>
 
         <section className="border-t border-line bg-surface">
