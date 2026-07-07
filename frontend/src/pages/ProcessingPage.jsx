@@ -54,7 +54,7 @@ export function ProcessingPage() {
         <Card tier="risk-critical" className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="font-display text-xl text-ink">Couldn't check on this investigation</p>
           <p className="text-sm text-ink-muted">{error?.message}</p>
-          <Button as={Link} to="/" variant="secondary" className="mt-2">
+          <Button as={Link} to="/dashboard" variant="secondary" className="mt-2">
             Back to dashboard
           </Button>
         </Card>
