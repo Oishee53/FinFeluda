@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "due_diligence"
 
     # --- Embeddings ---
-    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     # --- Cloudinary ---
     CLOUDINARY_CLOUD_NAME: str

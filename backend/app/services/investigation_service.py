@@ -15,6 +15,7 @@ from app.services.reasoning_service import (
     analyze_risk,
     generate_executive_summary,
     generate_recommendations,
+    extract_reviews,
 )
 from app.services.persistence_service import persist_analysis_results, mark_investigation_failed
 
@@ -62,9 +63,10 @@ async def run_reason_stage(
         recommendations = await asyncio.to_thread(
             generate_recommendations, company_name, extraction, risk
         )
+        reviews = await asyncio.to_thread(extract_reviews, company_name, chunks)
 
         await persist_analysis_results(
-            db, investigation_id, extraction, risk, summary, recommendations
+            db, investigation_id, extraction, risk, summary, recommendations, reviews
         )
         logger.info("REASON stage completed for %s (%s)", investigation_id, company_name)
 

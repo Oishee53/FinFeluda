@@ -40,7 +40,7 @@ from typing import List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from app.schemas.source_document import NormalizedChunk
 
-EMBEDDING_DIM = 384  # BAAI/bge-small-en-v1.5 dense output size
+EMBEDDING_DIM = 384  # paraphrase-multilingual-MiniLM-L12-v2 dense output size
 
 if settings.QDRANT_URL:
     client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
@@ -305,6 +305,18 @@ def get_all_chunks_for_investigation(investigation_id: str, limit: int = 500) ->
     return payloads
 
 
+def delete_chunks_for_investigation(investigation_id: str) -> None:
+    """Sync implementation. Call delete_chunks_for_investigation_async()
+    from async code (e.g. the investigation DELETE endpoint)."""
+    ensure_collection()
+    client.delete(
+        collection_name=settings.QDRANT_COLLECTION,
+        points_selector=Filter(must=[
+            FieldCondition(key="investigation_id", match=MatchValue(value=investigation_id))
+        ]),
+    )
+
+
 def get_tier_coverage_summary(investigation_id: str) -> dict:
     """
     Structural metadata about what confidence tiers actually have data
@@ -398,3 +410,7 @@ async def get_all_chunks_for_investigation_async(investigation_id: str, limit: i
 
 async def get_tier_coverage_summary_async(investigation_id: str) -> dict:
     return await asyncio.to_thread(get_tier_coverage_summary, investigation_id)
+
+
+async def delete_chunks_for_investigation_async(investigation_id: str) -> None:
+    await asyncio.to_thread(delete_chunks_for_investigation, investigation_id)

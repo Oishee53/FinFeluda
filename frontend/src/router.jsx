@@ -9,6 +9,7 @@ import { ChatPage } from "./pages/ChatPage";
 import { ReportPage } from "./pages/ReportPage";
 import { ComparePage } from "./pages/ComparePage";
 import { SourcesPage } from "./pages/SourcesPage";
+import { ReviewsPage } from "./pages/ReviewsPage";
 import { RiskCategoryPage } from "./pages/RiskCategoryPage";
 
 function RootLayout() {
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: "/investigations/:id/processing", element: <ProcessingPage /> },
       { path: "/investigations/:id", element: <InvestigationPage /> },
       { path: "/investigations/:id/sources", element: <SourcesPage /> },
+      { path: "/investigations/:id/reviews", element: <ReviewsPage /> },
       { path: "/investigations/:id/risks/:category", element: <RiskCategoryPage /> },
       { path: "/investigations/:id/chat", element: <ChatPage /> },
       { path: "/investigations/:id/report", element: <ReportPage /> },

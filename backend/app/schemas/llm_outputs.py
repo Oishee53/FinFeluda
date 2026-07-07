@@ -83,3 +83,24 @@ class RecommendationItem(BaseModel):
 
 class RecommendationsResult(BaseModel):
     recommendations: list[RecommendationItem]
+
+
+class ExtractedReview(BaseModel):
+    source_name: str
+    source_type: str
+    origin_url: Optional[str] = None
+    confidence_tier: int
+    sentiment: Literal["positive", "negative", "neutral", "mixed"]
+    quote: str = Field(description="Verbatim excerpt from the source -- never paraphrased")
+    reviewer_context: str = Field(
+        description="Who/where this came from, e.g. 'Reddit user in r/bangladesh', "
+                    "'bdjobs.com listing'"
+    )
+
+
+class ReviewExtractionResult(BaseModel):
+    reviews: list[ExtractedReview] = Field(default_factory=list)
+    extraction_notes: Optional[str] = Field(
+        default=None,
+        description="e.g. 'no review-like content found in gathered sources'",
+    )

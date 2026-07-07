@@ -33,6 +33,7 @@ httpx
 beautifulsoup4
 trafilatura             # clean main-content extraction
 lxml
+feedparser               # RSS parsing for Bangladesh news sources
 
 # --- Data / ratios ---
 pandas

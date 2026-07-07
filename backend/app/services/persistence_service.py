@@ -19,12 +19,14 @@ from app.models.company import Company
 from app.models.financial import Financial
 from app.models.risk import Risk
 from app.models.report import Report
+from app.models.review import Review
 from app.models.investigation import Investigation, InvestigationStatus
 from app.schemas.llm_outputs import (
     FinancialExtractionResult,
     RiskAnalysisResult,
     ExecutiveSummaryResult,
     RecommendationsResult,
+    ReviewExtractionResult,
 )
 from app.services.scoring_service import calculate_health_subscores
 
@@ -45,6 +47,7 @@ async def persist_analysis_results(
     risk: RiskAnalysisResult,
     summary: ExecutiveSummaryResult,
     recommendations: RecommendationsResult,
+    reviews: ReviewExtractionResult,
 ) -> float:
     """Persists everything and returns the computed overall health score."""
 
@@ -96,6 +99,22 @@ async def persist_analysis_results(
                 score=risk.overall_risk_score,
                 is_contradiction=flag.is_contradiction,
                 supporting_sources=", ".join(flag.supporting_sources),
+            )
+        )
+
+    await db.execute(delete(Review).where(Review.investigation_id == investigation_id))
+    for r in reviews.reviews:
+        db.add(
+            Review(
+                id=str(uuid.uuid4()),
+                investigation_id=investigation_id,
+                source_name=r.source_name,
+                source_type=r.source_type,
+                origin_url=r.origin_url,
+                confidence_tier=r.confidence_tier,
+                sentiment=r.sentiment,
+                quote=r.quote,
+                reviewer_context=r.reviewer_context,
             )
         )
 

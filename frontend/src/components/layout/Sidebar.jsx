@@ -42,6 +42,7 @@ export function Sidebar({ investigationId, companyName }) {
             Overview
           </SidebarLink>
           <SidebarLink to={`${base}/sources`}>Sources</SidebarLink>
+          <SidebarLink to={`${base}/reviews`}>Reviews</SidebarLink>
 
           <p className="mb-1 mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
             Risk analysis
