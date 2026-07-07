@@ -1,5 +1,15 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, MotionConfig } from "framer-motion";
+import {
+  motion,
+  MotionConfig,
+  animate,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  useMotionTemplate,
+  useReducedMotion,
+} from "framer-motion";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { cn, CONFIDENCE_TIER_META } from "../lib/utils";
@@ -82,16 +92,6 @@ const SOURCE_ICONS = {
       <path d="M5.5 6.5h5M5.5 8.5h3" />
     </svg>
   ),
-};
-
-const heroContainer = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.16, delayChildren: 0.5 } },
-};
-
-const heroRow = {
-  hidden: { opacity: 0, x: -10 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
 const revealUp = {
@@ -190,75 +190,147 @@ function EvidenceLedgerDemo() {
         float={6}
       />
 
-      <motion.div
-        variants={heroContainer}
-        initial="hidden"
-        animate="show"
-        className="glass-panel relative overflow-hidden"
-      >
-        {/* Periodic scan sweep — the "AI reading the ledger" moment. */}
-        <motion.div
-          aria-hidden="true"
-          initial={{ top: "-12%", opacity: 0 }}
-          animate={{ top: ["-12%", "108%"], opacity: [0, 0.7, 0.7, 0] }}
-          transition={{ duration: 2.4, delay: 2.2, repeat: Infinity, repeatDelay: 3.6, ease: "easeInOut" }}
-          className="pointer-events-none absolute left-0 z-10 h-10 w-full"
-          style={{
-            background:
-              "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent)",
-          }}
-        />
+      <MagnifierSheet />
 
-        <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <div className="flex items-center gap-2">
-            <motion.span
-              aria-hidden="true"
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-              className="h-2 w-2 rounded-full bg-brand"
-            />
-            <p className="font-display text-sm font-semibold text-ink">Fenwick Grid Systems</p>
-          </div>
-          <span className="tier-tag bg-line text-ink-faint">Sample investigation</span>
-        </div>
-        <ul className="flex flex-col divide-y divide-line">
-          {MOCK_CLAIMS.map((claim) => {
-            const tier = CONFIDENCE_TIER_META[claim.tier];
-            return (
-              <motion.li
-                key={claim.text}
-                variants={heroRow}
-                whileHover={{ backgroundColor: "rgba(20, 24, 31, 0.02)" }}
-                className="relative flex items-start gap-3 py-3 pr-4 pl-[calc(1.25rem-3px)]"
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute left-0 top-0 h-full w-[3px]"
-                  style={{ backgroundColor: `var(--color-${tier.color})` }}
-                />
-                <span
-                  aria-hidden="true"
-                  className="mt-0.5 h-6 w-6 shrink-0 rounded-md p-1"
-                  style={{
-                    backgroundColor: `var(--color-${tier.color}-soft)`,
-                    color: `var(--color-${tier.color})`,
-                  }}
-                >
-                  {SOURCE_ICONS[claim.icon]}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-ink">{claim.text}</p>
-                  <p className="mt-1 text-[11px] text-ink-faint">{claim.source}</p>
-                </div>
-                <Badge color={tier.color} className="mt-0.5 shrink-0">
-                  {tier.label}
-                </Badge>
-              </motion.li>
-            );
-          })}
-        </ul>
-      </motion.div>
+      <p className="mt-4 text-center text-xs text-ink-faint">
+        Move the lens — the AI reads what the summary hides.
+      </p>
     </div>
+  );
+}
+
+/** The document rendered twice: once ghosted, once sharp under the lens. */
+function DocumentSheet({ ghost = false }) {
+  return (
+    <div
+      aria-hidden={ghost ? undefined : "true"}
+      className="glass-panel overflow-hidden"
+      style={
+        ghost
+          ? { filter: "grayscale(1) blur(2px)", opacity: 0.45 }
+          : undefined
+      }
+    >
+      <div className="flex items-center justify-between border-b border-line px-5 py-3">
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="h-2 w-2 rounded-full bg-brand" />
+          <p className="font-display text-sm font-semibold text-ink">Fenwick Grid Systems</p>
+        </div>
+        <span className="tier-tag bg-line text-ink-faint">Sample investigation</span>
+      </div>
+      <ul className="flex flex-col divide-y divide-line">
+        {MOCK_CLAIMS.map((claim) => {
+          const tier = CONFIDENCE_TIER_META[claim.tier];
+          return (
+            <li
+              key={claim.text}
+              className="relative flex items-start gap-3 py-3 pr-4 pl-[calc(1.25rem-3px)]"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute left-0 top-0 h-full w-[3px]"
+                style={{ backgroundColor: `var(--color-${tier.color})` }}
+              />
+              <span
+                aria-hidden="true"
+                className="mt-0.5 h-6 w-6 shrink-0 rounded-md p-1"
+                style={{
+                  backgroundColor: `var(--color-${tier.color}-soft)`,
+                  color: `var(--color-${tier.color})`,
+                }}
+              >
+                {SOURCE_ICONS[claim.icon]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-ink">{claim.text}</p>
+                <p className="mt-1 text-[11px] text-ink-faint">{claim.source}</p>
+              </div>
+              <Badge color={tier.color} className="mt-0.5 shrink-0">
+                {tier.label}
+              </Badge>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+const LENS_RADIUS = 85;
+
+/**
+ * Magnifying-glass hero: the report is ghosted until the lens passes
+ * over it. Follows the cursor; when idle (or on touch devices), the
+ * lens sweeps the document on its own.
+ */
+function MagnifierSheet() {
+  const containerRef = useRef(null);
+  const [hovering, setHovering] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+
+  const mx = useMotionValue(180);
+  const my = useMotionValue(140);
+  const sx = useSpring(mx, { stiffness: 200, damping: 24 });
+  const sy = useSpring(my, { stiffness: 200, damping: 24 });
+
+  const clipPath = useMotionTemplate`circle(${LENS_RADIUS}px at ${sx}px ${sy}px)`;
+  const lensX = useTransform(sx, (v) => v - LENS_RADIUS);
+  const lensY = useTransform(sy, (v) => v - LENS_RADIUS);
+
+  useEffect(() => {
+    if (hovering || prefersReducedMotion) return;
+    const ax = animate(mx, [90, 300, 210, 90], {
+      duration: 10,
+      repeat: Infinity,
+      ease: "easeInOut",
+    });
+    const ay = animate(my, [90, 140, 300, 90], {
+      duration: 10,
+      repeat: Infinity,
+      ease: "easeInOut",
+    });
+    return () => {
+      ax.stop();
+      ay.stop();
+    };
+  }, [hovering, prefersReducedMotion, mx, my]);
+
+  const handleMove = (e) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    mx.set(e.clientX - rect.left);
+    my.set(e.clientY - rect.top);
+  };
+
+  return (
+    <motion.div
+      ref={containerRef}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+      onPointerMove={handleMove}
+      onPointerEnter={() => setHovering(true)}
+      onPointerLeave={() => setHovering(false)}
+      className="relative cursor-none"
+    >
+      {/* Ghosted document — what a skim-read gives you. */}
+      <DocumentSheet ghost />
+
+      {/* Sharp document, visible only through the lens. */}
+      <motion.div className="absolute inset-0" style={{ clipPath }}>
+        <DocumentSheet />
+      </motion.div>
+
+      {/* The lens itself. */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 top-0 z-10"
+        style={{ x: lensX, y: lensY, width: LENS_RADIUS * 2, height: LENS_RADIUS * 2 }}
+      >
+        <div className="h-full w-full rounded-full border-[3px] border-brand shadow-card-hover" />
+        {/* Handle, bottom-right of the ring. */}
+        <span className="absolute -bottom-7 -right-7 h-12 w-3 origin-top-left -rotate-45 rounded-full bg-brand" />
+      </motion.div>
+    </motion.div>
   );
 }
 
