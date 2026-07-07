@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { motion, MotionConfig } from "framer-motion";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
-import { CONFIDENCE_TIER_META } from "../lib/utils";
+import { cn, CONFIDENCE_TIER_META } from "../lib/utils";
 
 const PIPELINE = [
   {
@@ -72,11 +72,36 @@ const STEPS = [
 ];
 
 const MOCK_CLAIMS = [
-  { text: "Revenue grew 34% YoY in FY2024", tier: 1, source: "SEC 10-K filing" },
-  { text: "Took on $18M in debt to fund a 2023 acquisition", tier: 1, source: "SEC 10-K filing" },
-  { text: "Employee reviews cite rising turnover since 2023", tier: 3, source: "Corroborating press" },
-  { text: "Founder calls it “the category leader”", tier: 4, source: "Contradicts market-share data" },
+  { text: "Revenue grew 34% YoY in FY2024", tier: 1, source: "SEC 10-K filing", icon: "filing" },
+  { text: "Took on $18M in debt to fund a 2023 acquisition", tier: 1, source: "SEC 10-K filing", icon: "filing" },
+  { text: "Employee reviews cite rising turnover since 2023", tier: 3, source: "Corroborating press", icon: "press" },
+  { text: "Founder calls it “the category leader”", tier: 4, source: "Contradicts market-share data", icon: "quote" },
 ];
+
+/* Small evidence-source glyphs so each ledger row reads at a glance:
+   a filing document, independent press, or a company's own words. */
+const SOURCE_ICONS = {
+  filing: (
+    <svg className="h-full w-full" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 1.5h5.5L12.5 4.5v10h-8.5z" />
+      <path d="M9.5 1.5v3h3" />
+      <path d="M6 8h4.5M6 10.5h4.5" />
+    </svg>
+  ),
+  press: (
+    <svg className="h-full w-full" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3.5h9.5v9a1 1 0 0 0 1 1H3a1 1 0 0 1-1-1z" />
+      <path d="M11.5 6H14v6.5a1 1 0 0 1-1 1h-.5" />
+      <path d="M4.5 6.5h4.5M4.5 9h4.5M4.5 11h2.5" />
+    </svg>
+  ),
+  quote: (
+    <svg className="h-full w-full" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 3h11v8h-6L4 13.5V11H2.5z" />
+      <path d="M5.5 6.5h5M5.5 8.5h3" />
+    </svg>
+  ),
+};
 
 const heroContainer = {
   hidden: {},
@@ -136,44 +161,123 @@ function LandingNav() {
   );
 }
 
-function EvidenceLedgerDemo() {
+function FloatingChip({ label, value, tone, className, float = 8, duration = 5, delay = 0 }) {
   return (
     <motion.div
-      variants={heroContainer}
-      initial="hidden"
-      animate="show"
-      className="glass-panel w-full max-w-md shrink-0 overflow-hidden"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: [0, -float, 0] }}
+      transition={{
+        opacity: { duration: 0.4, delay: delay + 1.4 },
+        y: { duration, delay: delay + 1.4, repeat: Infinity, ease: "easeInOut" },
+      }}
+      className={cn("glass-card absolute z-10 px-4 py-2.5", className)}
     >
-      <div className="flex items-center justify-between border-b border-line px-5 py-3">
-        <p className="font-display text-sm font-semibold text-ink">Fenwick Grid Systems</p>
-        <span className="tier-tag bg-line text-ink-faint">Sample investigation</span>
-      </div>
-      <ul className="flex flex-col divide-y divide-line">
-        {MOCK_CLAIMS.map((claim) => {
-          const tier = CONFIDENCE_TIER_META[claim.tier];
-          return (
-            <motion.li
-              key={claim.text}
-              variants={heroRow}
-              className="relative flex items-start gap-3 py-3 pr-4 pl-[calc(1.25rem-3px)]"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute left-0 top-0 h-full w-[3px]"
-                style={{ backgroundColor: `var(--color-${tier.color})` }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-ink">{claim.text}</p>
-                <p className="mt-1 text-[11px] text-ink-faint">{claim.source}</p>
-              </div>
-              <Badge color={tier.color} className="mt-0.5 shrink-0">
-                {tier.label}
-              </Badge>
-            </motion.li>
-          );
-        })}
-      </ul>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className="data-figure text-xl font-semibold" style={{ color: `var(--color-${tone})` }}>
+        {value}
+      </p>
     </motion.div>
+  );
+}
+
+function EvidenceLedgerDemo() {
+  return (
+    <div className="relative w-full max-w-md shrink-0">
+      {/* Soft brand glow behind the ledger, breathing slowly. */}
+      <motion.div
+        aria-hidden="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0.5, 0.85, 0.5], scale: [1, 1.06, 1] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -inset-8 rounded-full bg-brand-soft blur-3xl"
+      />
+
+      <FloatingChip
+        label="Health score"
+        value="62"
+        tone="tier-3"
+        className="-top-6 -right-3 sm:-right-8"
+        duration={5}
+      />
+      <FloatingChip
+        label="Red flags"
+        value="3"
+        tone="risk-high"
+        className="-bottom-6 -left-3 sm:-left-8"
+        duration={6}
+        delay={0.6}
+        float={6}
+      />
+
+      <motion.div
+        variants={heroContainer}
+        initial="hidden"
+        animate="show"
+        className="glass-panel relative overflow-hidden"
+      >
+        {/* Periodic scan sweep — the "AI reading the ledger" moment. */}
+        <motion.div
+          aria-hidden="true"
+          initial={{ top: "-12%", opacity: 0 }}
+          animate={{ top: ["-12%", "108%"], opacity: [0, 0.7, 0.7, 0] }}
+          transition={{ duration: 2.4, delay: 2.2, repeat: Infinity, repeatDelay: 3.6, ease: "easeInOut" }}
+          className="pointer-events-none absolute left-0 z-10 h-10 w-full"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent)",
+          }}
+        />
+
+        <div className="flex items-center justify-between border-b border-line px-5 py-3">
+          <div className="flex items-center gap-2">
+            <motion.span
+              aria-hidden="true"
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              className="h-2 w-2 rounded-full bg-brand"
+            />
+            <p className="font-display text-sm font-semibold text-ink">Fenwick Grid Systems</p>
+          </div>
+          <span className="tier-tag bg-line text-ink-faint">Sample investigation</span>
+        </div>
+        <ul className="flex flex-col divide-y divide-line">
+          {MOCK_CLAIMS.map((claim) => {
+            const tier = CONFIDENCE_TIER_META[claim.tier];
+            return (
+              <motion.li
+                key={claim.text}
+                variants={heroRow}
+                whileHover={{ backgroundColor: "rgba(20, 24, 31, 0.02)" }}
+                className="relative flex items-start gap-3 py-3 pr-4 pl-[calc(1.25rem-3px)]"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute left-0 top-0 h-full w-[3px]"
+                  style={{ backgroundColor: `var(--color-${tier.color})` }}
+                />
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 h-6 w-6 shrink-0 rounded-md p-1"
+                  style={{
+                    backgroundColor: `var(--color-${tier.color}-soft)`,
+                    color: `var(--color-${tier.color})`,
+                  }}
+                >
+                  {SOURCE_ICONS[claim.icon]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-ink">{claim.text}</p>
+                  <p className="mt-1 text-[11px] text-ink-faint">{claim.source}</p>
+                </div>
+                <Badge color={tier.color} className="mt-0.5 shrink-0">
+                  {tier.label}
+                </Badge>
+              </motion.li>
+            );
+          })}
+        </ul>
+      </motion.div>
+    </div>
   );
 }
 
