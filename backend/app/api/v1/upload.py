@@ -11,7 +11,7 @@ call needed.
 """
 import uuid
 import logging
-from fastapi import APIRouter, UploadFile, File, Form, Depends, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_database
 from app.core.database import AsyncSessionLocal
@@ -26,6 +26,15 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Local PDF extraction (pymupdf full-document pass + pdfplumber table
+# extraction) is the actual resource cost here, not the upload itself --
+# on a memory-constrained free-tier deploy, processing an unbounded file
+# size risks OOMing the single worker for every other in-flight request,
+# not just this one. Set well above the largest real annual report
+# tested (a genuine 29MB filing processed successfully) so this only
+# catches truly outsized files, not realistic ones.
+MAX_UPLOAD_PDF_BYTES = 40 * 1024 * 1024
 
 
 async def _run_full_pipeline(
@@ -91,6 +100,14 @@ async def upload_documents(
 
     for f in files:
         content = await f.read()
+        if len(content) > MAX_UPLOAD_PDF_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"{f.filename} is {len(content) / 1024 / 1024:.1f}MB, over the "
+                    f"{MAX_UPLOAD_PDF_BYTES // 1024 // 1024}MB limit for a single upload."
+                ),
+            )
         # Upload to Cloudinary for permanent storage/sharing, best-effort --
         # never let an archival failure (e.g. the free-tier 10MB/file cap;
         # confirmed in practice with a real 29MB annual report) crash the

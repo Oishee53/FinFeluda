@@ -20,6 +20,23 @@ os.makedirs(TEMP_PDF_DIR, exist_ok=True)
 # assume it's a scanned PDF and fall back to OCR.
 OCR_FALLBACK_CHARS_PER_PAGE = 50
 
+# extract_text alone loses financial tables whenever a caller truncates
+# the flat text (see content_fetch_utils.py's MAX_PDF_CHARS) --
+# truncating from the start always keeps the cover page / AGM notice /
+# chairman's message and drops the balance sheet / income statement that
+# live 40-150 pages into a real annual report. This locates the pages
+# that actually look like financial statements first (fast pymupdf
+# keyword scan across all pages), then runs pdfplumber's much slower
+# table extraction ONLY on those specific pages -- running pdfplumber
+# over every page of a 200+ page report would be needlessly slow.
+FINANCIAL_STATEMENT_KEYWORDS = [
+    "balance sheet", "statement of financial position",
+    "profit and loss", "income statement", "statement of comprehensive income",
+    "statement of cash flows", "cash flow statement",
+    "statement of changes in equity",
+]
+MAX_FINANCIAL_TABLE_PAGES = 25
+
 
 def save_temp_pdf(content: bytes, filename: str) -> str:
     path = os.path.join(TEMP_PDF_DIR, filename)
@@ -28,14 +45,25 @@ def save_temp_pdf(content: bytes, filename: str) -> str:
     return path
 
 
-def extract_text_from_pdf(file_path: str) -> str:
-    """Primary extraction path: pymupdf, fast and accurate for text-based PDFs."""
+def extract_text_and_financial_tables(file_path: str) -> tuple[str, str]:
+    """
+    Combined replacement for what used to be two separate functions
+    (extract_text_from_pdf + extract_financial_tables) -- every real
+    caller (gather_pdf_documents, content_fetch_utils._fetch_pdf) always
+    needs both, and each used to open the file via fitz and iterate
+    every page independently, doing the same page.get_text() work
+    twice per PDF for no benefit. This does that pass once and reuses
+    it for both the full text and the financial-statement keyword scan.
+
+    Returns (full_text, financial_tables_text). financial_tables_text is
+    "" if no financial-statement-looking pages were found.
+    """
     doc = fitz.open(file_path)
-    text_parts = [page.get_text() for page in doc]
+    page_texts = [page.get_text() for page in doc]
     page_count = len(doc)
     doc.close()
 
-    full_text = "\n".join(text_parts)
+    full_text = "\n".join(page_texts)
     avg_chars_per_page = len(full_text) / max(page_count, 1)
 
     if avg_chars_per_page < OCR_FALLBACK_CHARS_PER_PAGE:
@@ -45,9 +73,27 @@ def extract_text_from_pdf(file_path: str) -> str:
         )
         ocr_text = _extract_text_via_ocr(file_path)
         if len(ocr_text.strip()) > len(full_text.strip()):
-            return ocr_text
+            full_text = ocr_text
 
-    return full_text
+    candidate_pages = [
+        i for i, text in enumerate(page_texts)
+        if any(kw in text.lower() for kw in FINANCIAL_STATEMENT_KEYWORDS)
+    ][:MAX_FINANCIAL_TABLE_PAGES]
+
+    tables_text = ""
+    if candidate_pages:
+        blocks = []
+        with pdfplumber.open(file_path) as pdf:
+            for i in candidate_pages:
+                if i >= len(pdf.pages):
+                    continue
+                for table in pdf.pages[i].extract_tables():
+                    rows = [" | ".join(cell or "" for cell in row) for row in table]
+                    if rows:
+                        blocks.append("\n".join(rows))
+        tables_text = "\n\n".join(blocks)
+
+    return full_text, tables_text
 
 
 def _extract_text_via_ocr(file_path: str) -> str:
@@ -67,56 +113,6 @@ def _extract_text_via_ocr(file_path: str) -> str:
     except Exception as exc:
         logger.warning("OCR extraction failed for %s: %s", file_path, exc)
         return ""
-
-
-# extract_text_from_pdf() alone loses financial tables whenever a caller
-# truncates the flat text (see content_fetch_utils.py's MAX_PDF_CHARS) --
-# truncating from the start always keeps the cover page / AGM notice /
-# chairman's message and drops the balance sheet / income statement that
-# live 40-150 pages into a real annual report. This locates the pages
-# that actually look like financial statements first (fast pymupdf
-# keyword scan across all pages), then runs pdfplumber's much slower
-# table extraction ONLY on those specific pages -- running pdfplumber
-# over every page of a 200+ page report would be needlessly slow.
-FINANCIAL_STATEMENT_KEYWORDS = [
-    "balance sheet", "statement of financial position",
-    "profit and loss", "income statement", "statement of comprehensive income",
-    "statement of cash flows", "cash flow statement",
-    "statement of changes in equity",
-]
-MAX_FINANCIAL_TABLE_PAGES = 25
-
-
-def extract_financial_tables(file_path: str) -> str:
-    """
-    Returns financial-statement tables as readable pipe-delimited text
-    (one line per row, tables separated by blank lines), or "" if no
-    financial-statement-looking pages were found. Table extraction stays
-    on pdfplumber -- pymupdf's table support is weaker for the kind of
-    financial statement tables this app needs.
-    """
-    doc = fitz.open(file_path)
-    candidate_pages = [
-        i for i, page in enumerate(doc)
-        if any(kw in page.get_text().lower() for kw in FINANCIAL_STATEMENT_KEYWORDS)
-    ]
-    doc.close()
-
-    if not candidate_pages:
-        return ""
-    candidate_pages = candidate_pages[:MAX_FINANCIAL_TABLE_PAGES]
-
-    blocks = []
-    with pdfplumber.open(file_path) as pdf:
-        for i in candidate_pages:
-            if i >= len(pdf.pages):
-                continue
-            for table in pdf.pages[i].extract_tables():
-                rows = [" | ".join(cell or "" for cell in row) for row in table]
-                if rows:
-                    blocks.append("\n".join(rows))
-
-    return "\n\n".join(blocks)
 
 
 # NOTE: chunking now lives in app/sources/chunking.py (chunk_text_by_boundary),

@@ -18,7 +18,7 @@ import os
 import uuid
 import httpx
 import trafilatura
-from app.services.pdf_service import save_temp_pdf, extract_text_from_pdf, extract_financial_tables
+from app.services.pdf_service import save_temp_pdf, extract_text_and_financial_tables
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +30,27 @@ MAX_PDF_CHARS = 15000
 MAX_PAGE_CHARS = 3000
 FETCH_TIMEOUT_SECONDS = 15.0
 
+# Crawler-discovered PDFs aren't user-vetted the way an upload is -- an
+# unusually large linked file (some annual reports run 50MB+ once image-
+# heavy) shouldn't tie up a resource-constrained deploy processing it for
+# what's ultimately capped at MAX_PDF_CHARS of useful output anyway.
+# Degrades to "" like every other failure here rather than raising.
+MAX_PDF_DOWNLOAD_BYTES = 25 * 1024 * 1024
+
 
 async def _fetch_pdf(client: httpx.AsyncClient, url: str) -> str:
     resp = await client.get(url)
     if resp.status_code != 200:
         return ""
+    if len(resp.content) > MAX_PDF_DOWNLOAD_BYTES:
+        logger.info(
+            "Skipping oversized discovered PDF (%d bytes > %d cap): %s",
+            len(resp.content), MAX_PDF_DOWNLOAD_BYTES, url,
+        )
+        return ""
     temp_path = save_temp_pdf(resp.content, f"{uuid.uuid4()}.pdf")
     try:
-        text, tables_text = await asyncio.gather(
-            asyncio.to_thread(extract_text_from_pdf, temp_path),
-            asyncio.to_thread(extract_financial_tables, temp_path),
-        )
+        text, tables_text = await asyncio.to_thread(extract_text_and_financial_tables, temp_path)
         # Tables go first -- for a large annual report, the flat text's
         # first few thousand chars are cover page/AGM notice/chairman's
         # message, not the balance sheet, so truncation below would
