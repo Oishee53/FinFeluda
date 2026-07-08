@@ -24,6 +24,22 @@ logger = logging.getLogger(__name__)
 # highest-confidence-tier chunks first if we have to truncate.
 MAX_CHUNKS_PER_PROMPT = 60
 
+# Within the same confidence tier, a user-uploaded PDF or the crawled
+# company website is guaranteed to be about THIS company -- unlike
+# site:xyz.gov.bd search-derived sources (BSEC, Bangladesh Bank, etc.),
+# which can return loosely-matched, often-irrelevant boilerplate (e.g. a
+# BSEC hit about "prospectus transmission to embassies" that mentioned
+# the company name once). Confirmed in practice: a real uploaded annual
+# report's 23 chunks got crowded out to just 1 surviving chunk by 111
+# BSEC chunks that happened to come first in fetch order, because a
+# plain tier-only sort has no way to prefer one tier-1 source over
+# another. Lower number sorts first.
+_SOURCE_PRIORITY_WITHIN_TIER = {
+    "uploaded_pdf": 0,
+    "company_website": 1,
+}
+_DEFAULT_SOURCE_PRIORITY = 2
+
 # Groq's free tier enforces a 12k tokens-per-minute cap that counts
 # prompt AND max_tokens of a single request together -- a request over
 # the cap is rejected outright with a 413, it doesn't just throttle.
@@ -41,7 +57,13 @@ def _field(chunk, name: str):
 
 def _chunks_to_tagged_dicts(chunks: list, max_chars: int = MAX_PROMPT_CHARS) -> list[dict]:
     """max_chars is overridable per caller."""
-    sorted_chunks = sorted(chunks, key=lambda c: _field(c, "confidence_tier"))
+    def _sort_key(c):
+        source_priority = _SOURCE_PRIORITY_WITHIN_TIER.get(
+            _field(c, "source_type"), _DEFAULT_SOURCE_PRIORITY
+        )
+        return (_field(c, "confidence_tier"), source_priority)
+
+    sorted_chunks = sorted(chunks, key=_sort_key)
 
     selected: list[dict] = []
     total_chars = 0

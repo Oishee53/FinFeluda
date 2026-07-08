@@ -8,8 +8,9 @@ truststore.inject_into_ssl()
 # (via AIA chasing), without disabling verification.
 
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import inspect, text
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -29,6 +30,37 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Without this, an unhandled exception anywhere in a route falls through
+    to Starlette's own ServerErrorMiddleware, whose fallback 500 response
+    never gets a CORS header attached, so the browser can't read it and
+    reports a generic "Network Error" instead of the real failure
+    (confirmed in practice: a Cloudinary 10MB-file-size crash showed this
+    way until it was fixed at the source).
+
+    Registering this via @app.exception_handler(Exception) does NOT fix
+    that by itself -- confirmed by testing, not assumed: Starlette's own
+    build_middleware_stack() specifically special-cases handlers keyed on
+    Exception (or status code 500) and hands them to ServerErrorMiddleware
+    instead of the inner ExceptionMiddleware, so this handler ALSO runs
+    outside CORSMiddleware and its response also has no CORS headers by
+    default. The actual fix is to add the header manually here.
+    """
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
+    origin = request.headers.get("origin")
+    if origin in settings.allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+    return response
 
 
 def _add_missing_columns(sync_conn):
