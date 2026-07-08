@@ -85,22 +85,16 @@ class RecommendationsResult(BaseModel):
     recommendations: list[RecommendationItem]
 
 
-class ExtractedReview(BaseModel):
-    source_name: str
-    source_type: str
-    origin_url: Optional[str] = None
-    confidence_tier: int
-    sentiment: Literal["positive", "negative", "neutral", "mixed"]
-    quote: str = Field(description="Verbatim excerpt from the source -- never paraphrased")
-    reviewer_context: str = Field(
-        description="Who/where this came from, e.g. 'Reddit user in r/bangladesh', "
-                    "'bdjobs.com listing'"
-    )
-
-
-class ReviewExtractionResult(BaseModel):
-    reviews: list[ExtractedReview] = Field(default_factory=list)
-    extraction_notes: Optional[str] = Field(
-        default=None,
-        description="e.g. 'no review-like content found in gathered sources'",
-    )
+class SummaryAndRecommendationsResult(BaseModel):
+    """Combined output of what used to be two separate Groq calls
+    (ExecutiveSummaryResult + RecommendationsResult) -- both take the
+    exact same inputs (extraction + risk, no raw chunks) and neither
+    benefited from being separate, so merging them cuts one full
+    system-prompt/schema/extraction-dump round trip per investigation
+    without touching chunk budgets or output quality."""
+    company_summary: str
+    financial_summary: str
+    major_risks: str
+    opportunities: str
+    future_outlook: str
+    recommendations: list[RecommendationItem]

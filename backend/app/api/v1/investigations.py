@@ -14,7 +14,6 @@ from app.models.financial import Financial
 from app.models.risk import Risk
 from app.models.report import Report
 from app.models.chat_message import ChatMessage
-from app.models.review import Review
 from app.schemas.investigation import (
     InvestigationOut,
     InvestigationDetailOut,
@@ -22,7 +21,6 @@ from app.schemas.investigation import (
     ExecutiveSummaryOut,
     ReportRefOut,
     SourceOut,
-    ReviewOut,
 )
 from app.services.qdrant_service import (
     get_all_chunks_for_investigation_async,
@@ -141,31 +139,13 @@ async def get_investigation_sources(investigation_id: str, db: AsyncSession = De
     return sources
 
 
-@router.get("/{investigation_id}/reviews", response_model=List[ReviewOut])
-async def get_investigation_reviews(investigation_id: str, db: AsyncSession = Depends(get_database)):
-    """
-    Verbatim user/investor opinion quotes extracted from personal-opinion
-    sources (Reddit, YouTube, bdjobs.com, Glassdoor) gathered for this
-    investigation. Empty until analysis has run at least once.
-    """
-    investigation = await db.get(Investigation, investigation_id)
-    if investigation is None:
-        raise HTTPException(status_code=404, detail="Investigation not found")
-
-    reviews = (
-        await db.execute(select(Review).where(Review.investigation_id == investigation_id))
-    ).scalars().all()
-
-    return sorted(reviews, key=lambda r: (r.confidence_tier, r.source_name))
-
-
 @router.delete("/{investigation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_investigation(investigation_id: str, db: AsyncSession = Depends(get_database)):
     investigation = await db.get(Investigation, investigation_id)
     if investigation is None:
         raise HTTPException(status_code=404, detail="Investigation not found")
 
-    for model in (Company, Financial, Risk, Report, ChatMessage, Review):
+    for model in (Company, Financial, Risk, Report, ChatMessage):
         await db.execute(delete(model).where(model.investigation_id == investigation_id))
     await db.delete(investigation)
     await db.commit()

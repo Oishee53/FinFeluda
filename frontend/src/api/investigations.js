@@ -29,13 +29,6 @@ export async function getInvestigationSources(id) {
   return data;
 }
 
-/** Verbatim user/investor opinion quotes extracted from personal-opinion
- * sources (Reddit, YouTube, bdjobs.com, Glassdoor). */
-export async function getInvestigationReviews(id) {
-  const { data } = await apiClient.get(`/investigations/${id}/reviews`);
-  return data;
-}
-
 export async function deleteInvestigation(id) {
   await apiClient.delete(`/investigations/${id}`);
 }

@@ -63,21 +63,6 @@ class SourceOut(BaseModel):
     chunk_count: int
 
 
-class ReviewOut(BaseModel):
-    """One extracted user/investor opinion quote, for the Reviews page."""
-
-    source_type: str
-    source_name: str
-    origin_url: Optional[str] = None
-    confidence_tier: int
-    sentiment: str
-    quote: str
-    reviewer_context: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
 class InvestigationDetailOut(InvestigationOut):
     """
     Full detail response for GET /investigations/{id}. Every nested
