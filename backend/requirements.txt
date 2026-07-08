@@ -52,3 +52,10 @@ reportlab
 
 # --- Storage ---
 cloudinary
+
+# --- Ops ---
+psutil                  # memory-pressure check before reranking -- a free-tier
+                         # deploy (512MB) can OOM when the reranker's cross-encoder
+                         # model loads on top of the already-resident dense/sparse
+                         # embedding models; confirmed in practice on Render's free
+                         # tier, not a hypothetical

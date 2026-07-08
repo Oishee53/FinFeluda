@@ -282,8 +282,14 @@ async def answer_question(db: AsyncSession, investigation_id: str, question: str
         await _persist_message(db, investigation_id, "assistant", answer)
         return ChatResponse(answer=answer, sources=[])
 
+    # Lowered from 20 -- fewer candidate texts held and scored at once
+    # during reranking directly reduces that operation's peak memory,
+    # which matters on a memory-constrained deploy (confirmed in practice:
+    # the reranker's first load pushed a 512MB free-tier instance into an
+    # OOM kill). 12 is still enough diversity for the cross-encoder to
+    # meaningfully re-rank down to the final top_n=6 used in the prompt.
     hybrid_results = await search_hybrid_async(
-        dense_emb, sparse_emb, investigation_id, top_k=20
+        dense_emb, sparse_emb, investigation_id, top_k=12
     )
     # Same context-resolution reasoning as the embedding step -- the
     # cross-encoder also needs to know what a follow-up is really asking

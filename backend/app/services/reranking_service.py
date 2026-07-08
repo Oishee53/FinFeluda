@@ -21,6 +21,7 @@ the rest of this app's embedding stack -- no new dependency class).
 """
 import asyncio
 import logging
+import psutil
 from fastembed.rerank.cross_encoder import TextCrossEncoder
 from typing import List
 
@@ -29,6 +30,35 @@ logger = logging.getLogger(__name__)
 _reranker: TextCrossEncoder | None = None
 
 RERANKER_MODEL_NAME = "Xenova/ms-marco-MiniLM-L-6-v2"  # small, fast, good default cross-encoder
+
+# The reranker is already lazy-loaded (only instantiated on first chat
+# use, not at startup) -- confirmed in practice that lazy loading alone
+# isn't enough on a 512MB free-tier deploy: the FIRST chat request still
+# crashed the whole process with an OOM kill, because loading the
+# cross-encoder on top of the already-resident dense+sparse embedding
+# models plus that request's own working set (retrieved chunk text,
+# prompt strings) pushed total RSS over the container's memory cap.
+# This checks current process memory before attempting to load/run the
+# reranker and skips it entirely if already tight, falling back to the
+# hybrid search's own RRF-fused ordering (a real ranking, just less
+# precise) instead of crashing the whole request.
+MEMORY_PRESSURE_THRESHOLD_BYTES = 350 * 1024 * 1024
+
+
+def _memory_pressure_high() -> bool:
+    try:
+        rss = psutil.Process().memory_info().rss
+    except Exception:
+        # If we can't even check, don't let that itself break reranking --
+        # only psutil failing is the risk here, not a real OOM.
+        return False
+    if rss > MEMORY_PRESSURE_THRESHOLD_BYTES:
+        logger.warning(
+            "Memory pressure high (%.0fMB > %.0fMB threshold) -- skipping reranking",
+            rss / 1024 / 1024, MEMORY_PRESSURE_THRESHOLD_BYTES / 1024 / 1024,
+        )
+        return True
+    return False
 
 
 def get_reranker() -> TextCrossEncoder:
@@ -44,6 +74,9 @@ def rerank_chunks(query: str, candidates: List[dict], top_n: int = 6) -> List[di
 
     candidates: list of chunk payload dicts (as returned by
     qdrant_service.search_hybrid()), each must have a "text" key.
+    Already ordered by hybrid search's fused RRF score -- a real
+    (if less precise) ranking, so falling back to candidates[:top_n]
+    under memory pressure is a genuine degradation, not arbitrary order.
 
     Returns the top_n candidates re-sorted by the cross-encoder's
     relevance score, with payload["_rerank_score"] attached. This
@@ -55,6 +88,9 @@ def rerank_chunks(query: str, candidates: List[dict], top_n: int = 6) -> List[di
     """
     if not candidates:
         return []
+
+    if _memory_pressure_high():
+        return candidates[:top_n]
 
     model = get_reranker()
     texts = [c.get("text", "") for c in candidates]
